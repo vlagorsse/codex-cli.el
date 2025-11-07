@@ -861,6 +861,35 @@ When `reference', send an `@path' token instead of content."
             (codex-cli--show-and-maybe-focus buffer)
             (codex-cli--log-and-send buffer fenced "file"))))))))
 
+;;;###autoload
+(defun codex-cli-send-buffer-mention (&optional session)
+  "Send an `@path' file mention for the current buffer to Codex.
+Always emits a mention token, regardless of `codex-cli-send-style'. When
+multiple sessions exist, use the same chooser as `codex-cli-send-region'."
+  (interactive)
+  (unless buffer-file-name
+    (user-error "Current buffer is not visiting a file"))
+  (let* ((buffer
+          (cond
+           ((and session (stringp session) (> (length (string-trim session)) 0))
+            (get-buffer (codex-cli--buffer-name (string-trim session))))
+           (t
+            (let ((bufs (codex-cli--project-session-buffers)))
+              (cond
+               ((null bufs) nil)
+               ((= (length bufs) 1) (car bufs))
+               (t (codex-cli--choose-project-session-buffer "Send buffer mention to: "))))))))
+    (unless (and buffer (codex-cli--alive-p buffer))
+      (error "Codex CLI process not running. Use `codex-cli-start' first"))
+    (let* ((relpath (codex-cli-relpath buffer-file-name))
+           (ref (codex-cli--format-reference-for-file relpath)))
+      (message "Sending mention %s" ref)
+      (codex-cli--show-and-maybe-focus buffer)
+      (codex-cli--log-and-send buffer ref "buffer-mention"))))
+
+;;;###autoload
+(defalias 'codex-cli-send-buffer-reference #'codex-cli-send-buffer-mention)
+
 ;;; Session management helpers/commands
 
 (defun codex-cli--read-session-name (&optional prompt allow-empty)

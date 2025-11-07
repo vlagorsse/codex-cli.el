@@ -203,6 +203,89 @@
       (when (get-buffer "*codex-cli:proj-x:work*")
         (kill-buffer "*codex-cli:proj-x:work*")))))
 
+;; Buffer mention sending
+(ert-deftest codex-cli-test--send-buffer-mention-basic ()
+  "Send buffer mention selects the sole session buffer and logs a mention token."
+  (let ((session-buffer (get-buffer-create "*codex-cli:proj*"))
+        (sent nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'codex-cli--project-session-buffers)
+                   (lambda () (list session-buffer)))
+                  ((symbol-function 'codex-cli--alive-p) (lambda (_buf) t))
+                  ((symbol-function 'codex-cli-relpath) (lambda (_path) "proj/file.el"))
+                  ((symbol-function 'codex-cli--format-reference-for-file)
+                   (lambda (relpath) (format "@%s" relpath)))
+                  ((symbol-function 'codex-cli--show-and-maybe-focus) (lambda (_buf)))
+                  ((symbol-function 'codex-cli--log-and-send)
+                   (lambda (buffer content kind)
+                     (setq sent (list buffer content kind))))
+                  ;; Should not need to prompt when only one buffer exists.
+                  ((symbol-function 'codex-cli--choose-project-session-buffer)
+                   (lambda (&rest _) (ert-fail "chooser should not run for single buffer"))))
+          (with-temp-buffer
+            (setq-local buffer-file-name "/tmp/project/file.el")
+            (codex-cli-send-buffer-mention)
+            (should (eq (car sent) session-buffer))
+            (should (string= (cadr sent) "@proj/file.el"))
+            (should (string= (caddr sent) "buffer-mention"))))
+      (when (buffer-live-p session-buffer)
+        (kill-buffer session-buffer)))))
+
+(ert-deftest codex-cli-test--send-buffer-mention-session-arg ()
+  "Explicit SESSION argument resolves via `codex-cli--buffer-name'."
+  (let ((session-buffer (get-buffer-create "*codex-cli:proj:dev*"))
+        (buffer-name-args nil)
+        (sent nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'codex-cli--buffer-name)
+                   (lambda (session)
+                     (setq buffer-name-args session)
+                     "*codex-cli:proj:dev*"))
+                  ((symbol-function 'codex-cli--project-session-buffers)
+                   (lambda ()
+                     (ert-fail "should not inspect project buffers when SESSION provided")))
+                  ((symbol-function 'codex-cli--alive-p) (lambda (_buf) t))
+                  ((symbol-function 'codex-cli-relpath) (lambda (_path) "proj/file.el"))
+                  ((symbol-function 'codex-cli--format-reference-for-file)
+                   (lambda (_relpath) "@proj/file.el"))
+                  ((symbol-function 'codex-cli--show-and-maybe-focus) (lambda (_buf)))
+                  ((symbol-function 'codex-cli--log-and-send)
+                   (lambda (buffer content kind)
+                     (setq sent (list buffer content kind)))))
+          (with-temp-buffer
+            (setq-local buffer-file-name "/tmp/project/file.el")
+            (codex-cli-send-buffer-mention "dev")
+            (should (string= buffer-name-args "dev"))
+            (should (eq (car sent) session-buffer))
+            (should (string= (cadr sent) "@proj/file.el"))
+            (should (string= (caddr sent) "buffer-mention"))))
+      (when (buffer-live-p session-buffer)
+        (kill-buffer session-buffer)))))
+
+(ert-deftest codex-cli-test--send-buffer-mention-alias ()
+  "Ensure `codex-cli-send-buffer-reference' dispatches to the mention helper."
+  (let ((session-buffer (get-buffer-create "*codex-cli:proj*"))
+        (sent nil))
+    (unwind-protect
+        (cl-letf (((symbol-function 'codex-cli--project-session-buffers)
+                   (lambda () (list session-buffer)))
+                  ((symbol-function 'codex-cli--alive-p) (lambda (_buf) t))
+                  ((symbol-function 'codex-cli-relpath) (lambda (_path) "proj/file.el"))
+                  ((symbol-function 'codex-cli--format-reference-for-file)
+                   (lambda (relpath) (format "@%s" relpath)))
+                  ((symbol-function 'codex-cli--show-and-maybe-focus) (lambda (_buf)))
+                  ((symbol-function 'codex-cli--log-and-send)
+                   (lambda (buffer content kind)
+                     (setq sent (list buffer content kind)))))
+          (with-temp-buffer
+            (setq-local buffer-file-name "/tmp/project/file.el")
+            (codex-cli-send-buffer-reference)
+            (should (eq (car sent) session-buffer))
+            (should (string= (cadr sent) "@proj/file.el"))
+            (should (string= (caddr sent) "buffer-mention"))))
+      (when (buffer-live-p session-buffer)
+        (kill-buffer session-buffer)))))
+
 (provide 'codex-cli-test)
 
 ;;; codex-cli-test.el ends here

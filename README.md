@@ -17,7 +17,7 @@ Run Codex CLI inside Emacs — project‑scoped terminals, predictable windows, 
 - Project‑scoped Codex terminals (multiple sessions per project)
 - Side window toggle with fixed width and optional focus
 - “Show All Sessions” view with automatic column layout and paging
-- Send prompt, active region, or any file under the project
+- Send prompts, regions, files, or quick `@file` mentions from the current buffer
 - Smart chunking for large sends + optional per‑session preamble
 - Optional log buffer mirroring injected content
 
@@ -45,6 +45,7 @@ MELPA or directly from GitHub via `:vc`:
          ("C-c c p" . codex-cli-send-prompt)
          ("C-c c r" . codex-cli-send-region)
          ("C-c c f" . codex-cli-send-file)
+         ("C-c c @" . codex-cli-send-buffer-mention)
          ;; Show-all layout + paging
          ("C-c c a" . codex-cli-toggle-all)
          ("C-c c n" . codex-cli-toggle-all-next-page)
@@ -77,6 +78,7 @@ which codex && codex --version
 - `M-x codex-cli-send-prompt` → paste text into the terminal
 - Select a region → `M-x codex-cli-send-region`
 - `M-x codex-cli-send-file` → choose any file under the project
+- `M-x codex-cli-send-buffer-mention` → send an `@path` token for the current buffer
 
 5) Show all sessions for the project in columns:
 
@@ -96,6 +98,7 @@ Send helpers:
 - `codex-cli-send-prompt` — minibuffer → terminal
 - `codex-cli-send-region` — active region or whole buffer
 - `codex-cli-send-file` — pick and send a file under the project
+- `codex-cli-send-buffer-mention` — emit an `@path` token for the visiting file
 
 Multi‑session view:
 - `codex-cli-toggle-all` — show all sessions as columns; call again to restore layout
@@ -143,7 +146,7 @@ Alternatively, enable reference tokens instead of full content:
 (setq codex-cli-reference-file-format   "@%s")
 ```
 
-With `reference` style, `codex-cli-send-region` emits `@path#Lstart-end` when the buffer visits a file; otherwise it falls back to fenced content. `codex-cli-send-file` emits `@path`.
+With `reference` style, `codex-cli-send-region` emits `@path#Lstart-end` when the buffer visits a file; otherwise it falls back to fenced content. `codex-cli-send-file` emits `@path`. Need the mention without switching styles? `codex-cli-send-buffer-mention` always sends an `@path` token for the current buffer's file.
 
 
 ## Configuration Cheatsheet
